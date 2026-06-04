@@ -63,7 +63,10 @@ def write_excel(rows, output_path):
 
 
 if __name__ == '__main__':
-    pdf_path = sys.argv[1] if len(sys.argv) > 1 else '/mnt/user-data/uploads/Comit_Technologies_-_Snowflake_Usage_-_31_05_2026.pdf'
+    if len(sys.argv) < 2:
+        print("Usage: python snowflake_usage.py <input.pdf> [output.xlsx]")
+        sys.exit(1)
+    pdf_path = sys.argv[1]
     out_path = sys.argv[2] if len(sys.argv) > 2 else 'snowflake_usage.xlsx'
     rows = extract_rows(pdf_path)
     write_excel(rows, out_path)
