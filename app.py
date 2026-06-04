@@ -57,6 +57,7 @@ def parse_month(val):
 
 def append_rows(ws, rows):
     ws.append(['USAGE MONTH', 'USAGE CATEGORY', 'UNITS CONSUMED', 'TOTAL USAGE (USD)'])
+    total_rows = []
     for row in rows:
         is_total = row['units'].strip() == 'N/A' and row['category'].endswith('TOTAL')
         units_val = 'N/A' if is_total else parse_number(row['units'])
@@ -68,10 +69,26 @@ def append_rows(ws, rows):
         if is_total:
             for col in range(1, 5):
                 ws.cell(r, col).font = Font(bold=True)
+            total_rows.append(r)
         if units_val not in ('N/A', None):
             ws.cell(r, 3).number_format = '#,##0.000;(#,##0.000)'
         if usd_val is not None:
             ws.cell(r, 4).number_format = '#,##0.00;(#,##0.00)'
+    return total_rows
+
+
+def update_total_consumed(ws, new_total_rows):
+    """Find 'Total Consumed (USD)' row and extend its formula with new TOTAL row references."""
+    for row in ws.iter_rows(max_col=2):
+        cell_a, cell_b = row[0], row[1]
+        if cell_a.value and 'total consumed' in str(cell_a.value).strip().lower():
+            current = str(cell_b.value or '')
+            additions = ''.join(f'+D{r}' for r in new_total_rows)
+            if current.startswith('='):
+                cell_b.value = current + additions
+            else:
+                cell_b.value = '=' + '+'.join(f'D{r}' for r in new_total_rows)
+            break
 
 
 def build_excel(rows, existing_file=None):
@@ -83,7 +100,9 @@ def build_excel(rows, existing_file=None):
         wb = Workbook()
         ws = wb.active
         ws.title = 'Monthly Usage'
-    append_rows(ws, rows)
+    new_total_rows = append_rows(ws, rows)
+    if existing_file and new_total_rows:
+        update_total_consumed(ws, new_total_rows)
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
